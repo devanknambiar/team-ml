@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skin Cancer Detector (ML Demo)</title>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #e6f3ff; /* Lighter blue background */
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+        h1 {
+            color: #1a5c8e; /* Darker blue heading */
+            margin-bottom: 25px;
+        }
+        /* --- Form Styles --- */
+        .user-form label {
+            display: block;
+            text-align: left;
+            margin-top: 15px;
+            font-weight: 600;
+            color: #333;
+        }
+        .user-form input[type="text"], 
+        .user-form input[type="number"],
+        .user-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+        .btn-primary {
+            background-color: #1a5c8e;
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.1em;
+            margin-top: 25px;
+            transition: background-color 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #004085;
+        }
+        /* --- Image Upload Styles --- */
+        #imageUpload {
+            display: none; 
+        }
+        .upload-label {
+            display: block;
+            background-color: #4CAF50; /* Green for action */
+            color: white;
+            padding: 12px 15px;
+            margin: 20px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .upload-label:hover {
+            background-color: #388E3C;
+        }
+        #preview {
+            max-width: 100%;
+            max-height: 250px;
+            margin-top: 15px;
+            border: 3px solid #eee;
+            border-radius: 8px;
+            display: none; 
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 1.1em;
+            font-weight: bold;
+            min-height: 50px; 
+            border: 1px solid #e2e3e5;
+        }
+        .disclaimer {
+            margin-top: 25px;
+            font-size: 0.8em;
+            color: #888;
+        }
+
+        /* Hide the image section initially */
+        #imageSection {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🔬 ML Skin Lesion Analyzer</h1>
+
+    <div id="userFormSection">
+        <h2>Patient Information</h2>
+        <form id="userForm" class="user-form">
+            <label for="userName">Name:</label>
+            <input type="text" id="userName" required>
+
+            <label for="userAge">Age:</label>
+            <input type="number" id="userAge" min="1" max="120" required>
+
+            <label for="userPlace">Location/Place:</label>
+            <input type="text" id="userPlace" required>
+
+            <label for="userHistory">Family History (of skin issues/cancer):</label>
+            <textarea id="userHistory" rows="3" placeholder="e.g., Mother had melanoma"></textarea>
+
+            <button type="submit" class="btn-primary">Proceed to Scan</button>
+        </form>
+    </div>
+
+    <div id="imageSection">
+        <h2>Image Upload</h2>
+        <label for="imageUpload" class="upload-label">
+            Click to Upload Lesion Image
+        </label>
+        <input type="file" id="imageUpload" accept="image/*" required>
+
+        <img id="preview" src="#" alt="Image Preview">
+        
+        <div id="result">
+            Upload an image to get a prediction.
+        </div>
+    </div>
+
+    <p class="disclaimer">
+        **Disclaimer:** This tool is for demonstration and preliminary screening only. It is not a substitute for professional medical advice, diagnosis, or treatment. Consult a qualified healthcare provider for any health concerns.
+    </p>
+</div>
+
+<script>
+    // Note: The user details are collected but currently NOT sent to the backend.
+    // They are stored in variables for potential future use (e.g., logging).
+    const API_URL = '/predict'; 
+
+    const userFormSection = document.getElementById('userFormSection');
+    const imageSection = document.getElementById('imageSection');
+    const userForm = document.getElementById('userForm');
+    const fileInput = document.getElementById('imageUpload');
+    const preview = document.getElementById('preview');
+    const resultDiv = document.getElementById('result');
+    
+    let collectedUserDetails = {};
+
+    // --- 1. Form Submission Handler ---
+    userForm.addEventListener('submit', function(event) {
+        event.preventDefault(); // Stop the form from reloading the page
+        
+        // Collect user data
+        collectedUserDetails = {
+            name: document.getElementById('userName').value,
+            age: document.getElementById('userAge').value,
+            place: document.getElementById('userPlace').value,
+            history: document.getElementById('userHistory').value
+        };
+
+        // Hide the form and show the image upload section
+        userFormSection.style.display = 'none';
+        imageSection.style.display = 'block';
+
+        console.log('User Details Collected:', collectedUserDetails);
+        alert('Thank you! Please proceed with the image upload.');
+    });
+
+
+    // --- 2. Image Upload Handler ---
+    fileInput.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (file) {
+            preview.src = URL.createObjectURL(file);
+            preview.style.display = 'block';
+            
+            resultDiv.innerHTML = 'Analyzing image... Please wait.';
+            resultDiv.style.backgroundColor = '#fff3cd'; 
+            resultDiv.style.color = '#856404';
+
+            // Send file to the ML backend
+            sendImageForPrediction(file);
+        }
+    });
+
+    // --- 3. API Communication ---
+    async function sendImageForPrediction(file) {
+        const formData = new FormData();
+        formData.append('file', file); 
+        // Note: If you want to send user data, you would append it here too:
+        // formData.append('user_data', JSON.stringify(collectedUserDetails));
+
+        try {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            displayPrediction(data);
+
+        } catch (error) {
+            console.error('Error during prediction:', error);
+            resultDiv.innerHTML = '❌ An error occurred during analysis.';
+            resultDiv.style.backgroundColor = '#f8d7da'; 
+            resultDiv.style.color = '#721c24';
+        }
+    }
+
+    // --- 4. Display Results ---
+    function displayPrediction(data) {
+        const prediction = data.prediction || 'Unknown'; 
+        const confidence = (data.confidence * 100).toFixed(2); 
+
+        let resultHTML = `
+            Prediction: **${prediction}** <br>
+            Confidence: ${confidence}%
+        `;
+
+        // Apply color based on prediction
+        if (prediction.toLowerCase().includes('malignant')) {
+            resultDiv.style.backgroundColor = '#f8d7da'; 
+            resultDiv.style.color = '#721c24';
+        } else if (prediction.toLowerCase().includes('benign')) {
+            resultDiv.style.backgroundColor = '#d4edda'; 
+            resultDiv.style.color = '#155724';
+        } else {
+            resultDiv.style.backgroundColor = '#e2e3e5';
+            resultDiv.style.color = '#383d41';
+        }
+
+        resultDiv.innerHTML = resultHTML;
+    }
+
+</script>
+
+</body>
+</html>
